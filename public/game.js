@@ -16,11 +16,10 @@ if (!token) {
 }
 
 // Determine WebSocket URL based on MODE
-let wsUrl;
-if (MODE.local) wsUrl = `ws://localhost:3000/?token=${token}`;
-else if (MODE.lan)
-  wsUrl = `ws://${window.location.hostname}:3000/?token=${token}`;
-// else if (MODE.production) wsUrl = `wss://yourdomain.com/?token=${token}`;
+const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+const host = window.location.hostname;
+const port = window.location.port ? `:${window.location.port}` : ""; // optional local port
+let wsUrl = `${protocol}://${host}${port}/?token=${token}`;
 
 console.log("Connecting WebSocket to:", wsUrl);
 
