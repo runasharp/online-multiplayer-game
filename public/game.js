@@ -90,32 +90,45 @@ function moveLoop() {
 moveLoop();
 
 function renderPlayers() {
-  // Remove old elements
-  document
-    .querySelectorAll(".player, .player-label")
-    .forEach((el) => el.remove());
-
   for (let id in players) {
     const p = players[id];
 
-    // Player dot
-    const div = document.createElement("div");
-    div.className = "player";
-    div.style.left = p.x + "px";
-    div.style.top = p.y + "px";
-    if (id == myId) div.style.background = "green";
-    game.appendChild(div);
+    // PLAYER WRAPPER
+    let wrapper = document.getElementById(`player-wrapper-${id}`);
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.id = `player-wrapper-${id}`;
+      wrapper.style.position = "absolute";
+      game.appendChild(wrapper);
+    }
 
-    // Username below
-    const label = document.createElement("div");
-    label.className = "player-label";
+    // DOT inside wrapper
+    let dot = wrapper.querySelector(".player");
+    if (!dot) {
+      dot = document.createElement("div");
+      dot.className = "player";
+      wrapper.appendChild(dot);
+    }
+    dot.style.background = id == myId ? "green" : "red";
+
+    // LABEL inside wrapper
+    let label = wrapper.querySelector(".player-label");
+    if (!label) {
+      label = document.createElement("div");
+      label.className = "player-label";
+      wrapper.appendChild(label);
+    }
     label.style.position = "absolute";
-    label.style.left = p.x + "px";
-    label.style.top = p.y + 25 + "px";
+    label.style.left = "0px";
+    label.style.top = "25px";
     label.textContent = p.username;
-    game.appendChild(label);
 
-    const bubble = bubbles[p.username];
+    // Move wrapper to player position
+    wrapper.style.left = p.x + "px";
+    wrapper.style.top = p.y + "px";
+
+    // Optional bubble
+    const bubble = bubbles?.[p.username];
     if (bubble) {
       bubble.style.left = p.x + "px";
       bubble.style.top = p.y - 30 + "px";
