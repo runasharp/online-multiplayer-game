@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mini Multiplayer Click-to-Move</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline'"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="game"></div>
+
+    <!-- Chat area -->
+    <div id="chatContainer">
+      <button id="toggleChatHistory">▲</button>
+      <div id="chatHistory"></div>
+      <div id="chatInputWrapper">
+        <input id="chatInput" type="text" placeholder="Type message..." />
+        <button id="sendChat">Send</button>
+      </div>
+    </div>
+
+    <script>
+      const MODE = { local: false, lan: true, production: false };
+    </script>
+    <script src="game.js"></script>
+    <script src="chat.js"></script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Login/Register</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      input {
+        margin: 5px;
+      }
+      button {
+        margin: 5px;
+      }
+      #msg {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Register</h2>
+    <input id="regUser" placeholder="Username" />
+    <input id="regPass" placeholder="Password" type="password" />
+    <button onclick="register()">Register</button>
+
+    <h2>Login</h2>
+    <input id="loginUser" placeholder="Username" />
+    <input id="loginPass" placeholder="Password" type="password" />
+    <button onclick="login()">Login</button>
+
+    <p id="msg"></p>
+
+    <script src="login.js"></script>
+  </body>
+</html>
