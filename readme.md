@@ -2,6 +2,14 @@
 
 A simple multiplayer browser game where players can move around a shared canvas, chat in real-time, and have customizable avatars.
 
+## Preview
+
+In this preview, we first register a new user `someUser`. You can see the MongoDB database being updated with this new user. After registration, we log in with `someUser` and see it appear in the game.
+
+Next, in a separate tab, we log in with another pre-existing user. Switching between the tabs allows us to test the chat functionality: sending messages, viewing chat history, and confirming real-time updates between users.
+
+![Demo](public/assets/github/demo.gif)
+
 ---
 
 ## Architecture Overview
