@@ -2,7 +2,9 @@
 
 A simple multiplayer browser game where players can move around a shared canvas, chat in real-time, and have customizable avatars.
 
-## Preview
+![Default Location](public/assets/github/defaultLocation.jpeg)
+
+## Gif Preview
 
 In this preview, we first register a new user `someUser`. You can see the MongoDB database being updated with this new user. After registration, we log in with `someUser` and see it appear in the game.
 
