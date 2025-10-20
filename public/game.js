@@ -78,8 +78,13 @@ function moveLoop() {
       p.y += (dy / dist) * speed;
     }
 
-    ws.send(JSON.stringify({ type: "move", x: p.x, y: p.y }));
+    const sendInterval = 50; // ms, 20 updates/sec
+    let lastSent = 0;
 
+    if (Date.now() - lastSent > sendInterval) {
+      ws.send(JSON.stringify({ type: "move", x: p.x, y: p.y }));
+      lastSent = Date.now();
+    }
     console.log(`Player position: x=${p.x.toFixed(1)}, y=${p.y.toFixed(1)}`);
   }
 
