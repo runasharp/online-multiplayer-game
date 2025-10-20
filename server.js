@@ -23,7 +23,7 @@ console.log("WebSocket attached to HTTP server");
 const mongoose = require("mongoose");
 
 const mongoURI = `mongodb+srv://${dbUser}:${dbPass}@${dbHost}/`;
-console.log("MongoDB URI:", mongoURI);
+// console.log("MongoDB URI:", mongoURI);
 
 mongoose
   .connect(mongoURI + "user_data?retryWrites=true&w=majority", {
