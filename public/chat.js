@@ -33,7 +33,8 @@ chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChat();
 });
 
-const bubbles = {}; // username
+const bubbles = {}; // existing object for chat bubbles
+const bubbleTimeouts = {}; // NEW: store removal timers per user
 
 function addMessage(username, text) {
   chatMessages.push({ username, text });
@@ -60,17 +61,19 @@ function addMessage(username, text) {
     bubble.style.zIndex = 1000;
     game.appendChild(bubble);
     bubbles[username] = bubble;
-
-    // Remove bubble after 3 seconds
-    setTimeout(() => {
-      if (bubbles[username]) {
-        bubbles[username].remove();
-        delete bubbles[username];
-      }
-    }, 4000);
   } else {
-    bubbles[username].innerText = text; // just update text
+    bubbles[username].innerText = text; // update text
   }
+
+  // Clear previous timeout (if any) and set a new one
+  if (bubbleTimeouts[username]) clearTimeout(bubbleTimeouts[username]);
+  bubbleTimeouts[username] = setTimeout(() => {
+    if (bubbles[username]) {
+      bubbles[username].remove();
+      delete bubbles[username];
+      delete bubbleTimeouts[username];
+    }
+  }, 4000); // 4 seconds
 }
 
 // Handle incoming messages from server
