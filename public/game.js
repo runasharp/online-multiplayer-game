@@ -62,6 +62,8 @@ game.addEventListener("click", (e) => {
   }
 });
 
+let lastSent = 0;
+
 function moveLoop() {
   if (players[myId] && target) {
     let p = players[myId];
@@ -79,7 +81,6 @@ function moveLoop() {
     }
 
     const sendInterval = 50; // ms, 20 updates/sec
-    let lastSent = 0;
 
     if (Date.now() - lastSent > sendInterval) {
       ws.send(JSON.stringify({ type: "move", x: p.x, y: p.y }));
@@ -95,6 +96,8 @@ function moveLoop() {
 moveLoop();
 
 function renderPlayers() {
+  const dt = 0.1; // interpolation factor (0–1), adjust for speed/smoothness
+
   for (let id in players) {
     const p = players[id];
 
@@ -128,15 +131,22 @@ function renderPlayers() {
     label.style.top = "25px";
     label.textContent = p.username;
 
-    // Move wrapper to player position
-    wrapper.style.left = p.x + "px";
-    wrapper.style.top = p.y + "px";
+    // Initialize display positions if not exist
+    if (p.displayX === undefined) p.displayX = p.x;
+    if (p.displayY === undefined) p.displayY = p.y;
+
+    // Interpolate toward server position
+    p.displayX += (p.x - p.displayX) * dt;
+    p.displayY += (p.y - p.displayY) * dt;
+
+    // Move wrapper smoothly
+    wrapper.style.transform = `translate3d(${p.displayX}px, ${p.displayY}px, 0)`;
 
     // Optional bubble
     const bubble = bubbles?.[p.username];
     if (bubble) {
-      bubble.style.left = p.x + "px";
-      bubble.style.top = p.y - 30 + "px";
+      bubble.style.left = p.displayX + "px";
+      bubble.style.top = p.displayY - 30 + "px";
     }
   }
 }
