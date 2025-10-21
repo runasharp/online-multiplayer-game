@@ -40,11 +40,13 @@ ws.onmessage = (msg) => {
     players = data.players;
     console.log("Init received:", data);
     renderPlayers();
+    renderCoins();
   }
   if (data.type === "update") {
     players = data.players;
     console.log("Update received:", players);
     renderPlayers();
+    renderCoins();
   }
 };
 
@@ -148,5 +150,14 @@ function renderPlayers() {
       bubble.style.left = p.displayX + "px";
       bubble.style.top = p.displayY - 30 + "px";
     }
+  }
+}
+
+function renderCoins() {
+  const coinsDisplay = document.getElementById("coins-display");
+  if (!coinsDisplay) return;
+
+  if (players[myId]) {
+    coinsDisplay.textContent = `Coins: ${players[myId].coins}`;
   }
 }

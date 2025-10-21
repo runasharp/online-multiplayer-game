@@ -38,6 +38,7 @@ mongoose
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // hashed
+  coins: { type: Number, default: 0 }, // new field
 });
 
 // Mongoose will store these in the 'users' collection inside 'user_data'
@@ -121,18 +122,28 @@ app.get("/", (req, res) => {
 // --------------------
 // WebSocket multiplayer
 // --------------------
-wss.on("connection", (ws, req) => {
+wss.on("connection", async (ws, req) => {
   try {
     const urlParams = new URLSearchParams(req.url.split("?")[1]);
     const token = urlParams.get("token");
     if (!token) return ws.close();
 
     const payload = jwt.verify(token, JWT_SECRET);
-
-    const id = Date.now(); // unique player ID
     const username = payload.username;
 
-    players[id] = { x: 665.3, y: 322.4, username };
+    // Fetch user document from MongoDB to get coins
+    const user = await User.findOne({ username });
+    if (!user) return ws.close(); // safety check
+
+    const id = Date.now(); // unique player ID
+
+    players[id] = {
+      _id: user._id,
+      x: 665.3,
+      y: 322.4,
+      username,
+      coins: user.coins,
+    }; // console.log(user.coins);
 
     // send initial state
     ws.send(JSON.stringify({ type: "init", players, id }));
@@ -162,6 +173,26 @@ wss.on("connection", (ws, req) => {
   } catch (err) {
     console.error("Invalid JWT:", err);
     ws.close();
+  }
+});
+
+const userChangeStream = User.watch();
+
+userChangeStream.on("change", (change) => {
+  if (
+    change.operationType === "update" &&
+    change.updateDescription.updatedFields.coins !== undefined
+  ) {
+    const updatedUserId = change.documentKey._id;
+
+    // Update all connected players with this user ID
+    for (let pid in players) {
+      if (players[pid]._id.toString() === updatedUserId.toString()) {
+        players[pid].coins = change.updateDescription.updatedFields.coins;
+      }
+    }
+
+    broadcast(JSON.stringify({ type: "update", players }));
   }
 });
 
