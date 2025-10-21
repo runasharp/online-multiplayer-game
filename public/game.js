@@ -96,7 +96,7 @@ function moveLoop() {
 moveLoop();
 
 function renderPlayers() {
-  const dt = 0.1; // interpolation factor (0–1), adjust for speed/smoothness
+  const dt = 0.2; // interpolation factor (0–1), adjust for speed/smoothness
 
   for (let id in players) {
     const p = players[id];
