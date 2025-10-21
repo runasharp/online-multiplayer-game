@@ -231,16 +231,16 @@ userChangeStream.on("change", (change) => {
     change.operationType === "update" &&
     change.updateDescription.updatedFields.coins !== undefined
   ) {
-    const updatedUserId = change.documentKey._id;
+    const updatedUserId = change.documentKey._id.toString();
+    const newCoins = change.updateDescription.updatedFields.coins;
 
     // Update all connected players with this user ID
     for (let pid in players) {
-      if (players[pid]._id.toString() === updatedUserId.toString()) {
-        players[pid].coins = change.updateDescription.updatedFields.coins;
+      if (players[pid]._id.toString() === updatedUserId) {
+        players[pid].coins = newCoins;
+        broadcast(JSON.stringify({ type: "update", players }));
       }
     }
-
-    broadcast(JSON.stringify({ type: "update", players }));
   }
 });
 

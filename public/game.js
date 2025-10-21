@@ -63,6 +63,7 @@ ws.onmessage = (msg) => {
     players = data.players;
     console.log("Update received:", players);
     renderPlayers();
+    renderCoins();
   }
 };
 
