@@ -135,7 +135,7 @@ wss.on("connection", async (ws, req) => {
     const user = await User.findOne({ username });
     if (!user) return ws.close(); // safety check
 
-    const id = Date.now(); // unique player ID
+    const id = user._id.toString(); // привязка к MongoDB _id
 
     players[id] = {
       _id: user._id,
@@ -143,7 +143,7 @@ wss.on("connection", async (ws, req) => {
       y: 322.4,
       username,
       coins: user.coins,
-    }; // console.log(user.coins);
+    };
 
     // send initial state
     ws.send(JSON.stringify({ type: "init", players, id }));
@@ -167,7 +167,8 @@ wss.on("connection", async (ws, req) => {
     });
 
     ws.on("close", () => {
-      delete players[id];
+      // если другие сессии есть, оставляем последнего
+      if (players[id]) delete players[id];
       broadcast(JSON.stringify({ type: "update", players }));
     });
   } catch (err) {
