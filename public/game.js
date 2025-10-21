@@ -147,6 +147,7 @@ function renderPlayers() {
       dot.className = "player";
       wrapper.appendChild(dot);
     }
+    dot.removeAttribute("title");
     dot.style.background = id == myId ? "green" : "red";
 
     // LABEL inside wrapper
