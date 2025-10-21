@@ -15,6 +15,23 @@ if (!token) {
   window.location.href = "/login";
 }
 
+// Redirect to login if no token
+if (!token) {
+  window.location.href = "/login";
+}
+
+try {
+  const payload = JSON.parse(atob(token.split(".")[1])); // decode JWT payload
+  const exp = payload.exp * 1000; // JWT exp is in seconds
+  if (Date.now() > exp) {
+    alert("Session expired, please log in again.");
+    window.location.href = "/login";
+  }
+} catch (err) {
+  console.error("Invalid token:", err);
+  window.location.href = "/login";
+}
+
 // Determine WebSocket URL based on MODE
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 const host = window.location.hostname;
@@ -97,7 +114,18 @@ function moveLoop() {
 moveLoop();
 
 function renderPlayers() {
-  const dt = 0.2; // interpolation factor (0–1), adjust for speed/smoothness
+  const dt = 0.2;
+
+  // Remove DOM elements for players that no longer exist
+  const currentWrappers = Array.from(
+    document.querySelectorAll("[id^='player-wrapper-']")
+  );
+  currentWrappers.forEach((wrapper) => {
+    const pid = wrapper.id.replace("player-wrapper-", "");
+    if (!players[pid]) {
+      wrapper.remove();
+    }
+  });
 
   for (let id in players) {
     const p = players[id];

@@ -120,7 +120,7 @@ app.get("/", (req, res) => {
 });
 
 // --------------------
-// WebSocket multiplayer
+// WebSocket multiplayer with heartbeat
 // --------------------
 wss.on("connection", async (ws, req) => {
   try {
@@ -135,20 +135,31 @@ wss.on("connection", async (ws, req) => {
     const user = await User.findOne({ username });
     if (!user) return ws.close(); // safety check
 
-    const id = user._id.toString(); // привязка к MongoDB _id
+    const id = user._id.toString(); // MongoDB _id as string
+    ws.userId = id; // attach _id to ws for later reference
+    ws.isAlive = true; // mark alive for heartbeat
 
-    players[id] = {
-      _id: user._id,
-      x: 665.3,
-      y: 322.4,
-      username,
-      coins: user.coins,
-    };
+    if (players[id]) {
+      // restore existing player, keep previous x/y
+      players[id].disconnected = false;
+      // only update other info if needed
+      players[id].username = user.username;
+      players[id].coins = user.coins;
+    } else {
+      // new player
+      players[id] = {
+        _id: user._id,
+        x: 665.3, // default start if no previous data
+        y: 322.4,
+        username: user.username,
+        coins: user.coins,
+      };
+    }
 
     // send initial state
     ws.send(JSON.stringify({ type: "init", players, id }));
 
-    // listen for client messages
+    // Listen for client messages
     ws.on("message", (message) => {
       const data = JSON.parse(message);
 
@@ -164,18 +175,54 @@ wss.on("connection", async (ws, req) => {
         const chatMsg = { type: "chat", username, text: data.text };
         broadcast(JSON.stringify(chatMsg));
       }
+
+      // optional client-initiated disconnect
+      if (data.type === "disconnect" && players[id]) {
+        delete players[id];
+        broadcast(JSON.stringify({ type: "update", players }));
+        ws.close();
+      }
     });
 
+    // Mark socket alive on pong
+    ws.on("pong", () => {
+      ws.isAlive = true;
+    });
+
+    // Remove player when socket closes
     ws.on("close", () => {
-      // если другие сессии есть, оставляем последнего
-      if (players[id]) delete players[id];
-      broadcast(JSON.stringify({ type: "update", players }));
+      if (ws.userId && players[ws.userId]) {
+        // mark as disconnected but keep data
+        players[ws.userId].disconnected = true;
+
+        // remove after 1 second if they don't reconnect
+        setTimeout(() => {
+          if (players[ws.userId]?.disconnected) {
+            delete players[ws.userId];
+            broadcast(JSON.stringify({ type: "update", players }));
+            console.log(`Player ${ws.userId} removed after timeout`);
+          }
+        }, 1000);
+      }
     });
   } catch (err) {
     console.error("Invalid JWT:", err);
     ws.close();
   }
 });
+
+// Heartbeat interval to detect dead sockets
+setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (!ws.isAlive) {
+      console.log("Terminating dead socket:", ws.userId);
+      ws.terminate(); // triggers 'close'
+      return;
+    }
+    ws.isAlive = false;
+    ws.ping(); // request pong from client
+  });
+}, 10000); // every 10 seconds
 
 const userChangeStream = User.watch();
 
