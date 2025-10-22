@@ -10,7 +10,7 @@ class Player {
     this.coins = data.coins || 0;
     this.username = data.username || "Guest";
     this.color = data.color || "green";
-    this.location = data.location || null;
+    this.location = data.location || "city";
     this.wrapper = null;
     this.dot = null;
     this.label = null;
@@ -30,6 +30,16 @@ class Player {
   setTarget(targetX, targetY) {
     this.targetX = targetX;
     this.targetY = targetY;
+  }
+
+  setLocation(locationId, coords) {
+    this.location = locationId;
+    this.x = coords.x;
+    this.y = coords.y;
+    this.targetX = undefined;
+    this.targetY = undefined;
+    this.displayX = this.x;
+    this.displayY = this.y;
   }
 
   // Move towards target based on speed and deltaTime
