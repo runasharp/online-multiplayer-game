@@ -17,6 +17,26 @@
   align-items: center; /* horizontally centers content */
 }
 
+#logoutButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  color: black;
+  border: 1px solid #aaa;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-family: sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 1001;
+  transition: background 0.2s;
+}
+
+#logoutButton:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
 .player {
   width: 20px;
   height: 20px;

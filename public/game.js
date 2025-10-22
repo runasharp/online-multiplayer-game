@@ -272,3 +272,8 @@ function renderCoins() {
     coinsDisplay.textContent = `Coins: ${players[myId].coins}`;
   }
 }
+
+document.getElementById("logoutButton").addEventListener("click", () => {
+  localStorage.removeItem("token");
+  window.location.href = "/login";
+});
