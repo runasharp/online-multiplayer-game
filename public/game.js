@@ -208,6 +208,8 @@ function renderPlayers() {
       wrapper = document.createElement("div");
       wrapper.id = `player-wrapper-${id}`;
       wrapper.style.position = "absolute";
+      wrapper.style.width = "20px"; // match dot size
+      wrapper.style.height = "20px"; // match dot size
       game.appendChild(wrapper);
     }
 
@@ -216,10 +218,11 @@ function renderPlayers() {
     if (!dot) {
       dot = document.createElement("div");
       dot.className = "player";
+      dot.style.width = "20px";
+      dot.style.height = "20px";
+      dot.style.borderRadius = "50%";
       wrapper.appendChild(dot);
     }
-    dot.removeAttribute("title");
-    dot.style.background = id == myId ? "green" : "red";
 
     // LABEL inside wrapper
     let label = wrapper.querySelector(".player-label");
@@ -228,10 +231,16 @@ function renderPlayers() {
       label.className = "player-label";
       wrapper.appendChild(label);
     }
-    label.style.position = "absolute";
-    label.style.left = "0px";
-    label.style.top = "25px";
+
     label.textContent = p.username;
+
+    // Center label horizontally under dot
+    label.style.position = "absolute";
+    label.style.left = "50%"; // start at horizontal center of wrapper
+    label.style.top = "22px"; // just below the dot (20px dot + 2px spacing)
+    label.style.transform = "translateX(-50%)"; // truly center under dot
+    label.style.whiteSpace = "nowrap"; // prevent line wrap
+    label.style.pointerEvents = "none"; // clicks pass through
 
     // Initialize display positions if not exist
     if (p.displayX === undefined) p.displayX = p.x;
