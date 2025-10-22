@@ -169,8 +169,11 @@ wss.on("connection", async (ws, req) => {
     const id = user._id.toString(); // MongoDB _id as string
     ws.userId = id; // attach _id to ws for later reference
 
-    userConnections[id] = (userConnections[id] || 0) + 1;
-    console.log(`User ${id} connected. Active tabs: ${userConnections[id]}`);
+    userConnections[id] = userConnections[id] || [];
+    userConnections[id].push(ws);
+    console.log(
+      `User ${id} connected. Active tabs: ${userConnections[id].length}`
+    );
 
     ws.isAlive = true; // mark alive for heartbeat
 
@@ -183,25 +186,41 @@ wss.on("connection", async (ws, req) => {
       // new player
       players[id] = {
         _id: user._id,
-        x: 665.3, // default start if no previous data
+        x: 665.3,
         y: 322.4,
         username: user.username,
         coins: user.coins,
       };
     }
 
-    // send initial state
+    // send initial state with ALL players
     ws.send(JSON.stringify({ type: "init", players, id }));
+
+    // Also broadcast to others that this player joined/reconnected
+    const joinMsg = {
+      type: "update",
+      players: {
+        [id]: {
+          x: players[id].x,
+          y: players[id].y,
+          targetX: players[id].targetX,
+          targetY: players[id].targetY,
+          coins: players[id].coins,
+          username: players[id].username,
+        },
+      },
+    };
+    broadcast(JSON.stringify(joinMsg), ws); // exclude sender
 
     ws.on("message", (message) => {
       const data = JSON.parse(message);
 
-      // handle target setting instead of continuous move updates
+      // Handle target setting instead of continuous move updates
       if (data.type === "setTarget" && players[id]) {
         players[id].targetX = data.targetX;
         players[id].targetY = data.targetY;
 
-        // Broadcast the new target to all clients
+        // Broadcast the new target to all OTHER clients
         const targetMsg = {
           type: "update",
           players: {
@@ -215,7 +234,7 @@ wss.on("connection", async (ws, req) => {
             },
           },
         };
-        broadcast(JSON.stringify(targetMsg));
+        broadcast(JSON.stringify(targetMsg), ws); // exclude sender
 
         console.log(
           `Player ${username} new target: x=${data.targetX.toFixed(
@@ -246,26 +265,32 @@ wss.on("connection", async (ws, req) => {
       if (!ws.userId) return;
 
       const id = ws.userId;
-      userConnections[id] = (userConnections[id] || 1) - 1;
-      console.log(`User ${id} closed a tab. Remaining: ${userConnections[id]}`);
+      const connections = userConnections[id];
+      if (connections) {
+        const index = connections.indexOf(ws);
+        if (index > -1) connections.splice(index, 1);
 
-      if (userConnections[id] <= 0) {
-        delete userConnections[id];
-        if (players[id]) {
-          delete players[id];
-          broadcast(JSON.stringify({ type: "update", players }));
-          console.log(`Player ${id} removed (last tab closed)`);
+        console.log(
+          `User ${id} closed a tab. Remaining: ${connections.length}`
+        );
+
+        if (connections.length === 0) {
+          delete userConnections[id];
+          if (players[id]) {
+            delete players[id];
+            broadcast(JSON.stringify({ type: "remove", playerId: id }));
+            console.log(`Player ${id} removed (last tab closed)`);
+          }
         }
       }
     });
   } catch (err) {
-    console.error("Invalid JWT:", err);
+    console.error("WebSocket connection error:", err);
     ws.close();
   }
 });
 
-// Periodic position sync to correct any client drift
-// This sends the authoritative server positions every second
+// Periodic position sync to correct any client drift (less frequent now)
 setInterval(() => {
   if (Object.keys(players).length > 0) {
     const syncPayload = { type: "update", players: {} };
@@ -284,7 +309,7 @@ setInterval(() => {
 
     broadcast(JSON.stringify(syncPayload));
   }
-}, 1000); // Sync every 1 second
+}, 2000); // Sync every 2 seconds (reduced from 1s to avoid glitching)
 
 // Heartbeat interval to detect dead sockets
 setInterval(() => {
@@ -311,14 +336,29 @@ userChangeStream.on("change", (change) => {
 
     if (players[updatedUserId]) {
       players[updatedUserId].coins = newCoins;
-      changedPlayers.add(updatedUserId); // mark for delta update
+
+      // Broadcast coin update
+      const coinUpdate = {
+        type: "update",
+        players: {
+          [updatedUserId]: {
+            coins: newCoins,
+            username: players[updatedUserId].username,
+            x: players[updatedUserId].x,
+            y: players[updatedUserId].y,
+          },
+        },
+      };
+      broadcast(JSON.stringify(coinUpdate));
     }
   }
 });
 
-function broadcast(msg) {
+function broadcast(msg, excludeWs = null) {
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) client.send(msg);
+    if (client.readyState === WebSocket.OPEN && client !== excludeWs) {
+      client.send(msg);
+    }
   });
 }
 

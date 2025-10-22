@@ -54,6 +54,14 @@ ws.onmessage = (msg) => {
   if (data.type === "init") {
     myId = data.id;
     players = data.players;
+
+    // Initialize all players with their current positions
+    for (let pid in players) {
+      const p = players[pid];
+      if (p.displayX === undefined) p.displayX = p.x;
+      if (p.displayY === undefined) p.displayY = p.y;
+    }
+
     renderPlayers();
     renderCoins();
   }
@@ -61,7 +69,16 @@ ws.onmessage = (msg) => {
   if (data.type === "update") {
     for (let pid in data.players) {
       if (!players[pid]) players[pid] = {};
-      Object.assign(players[pid], data.players[pid]); // merge delta
+      const serverP = data.players[pid];
+
+      if (pid === myId) {
+        // Only update position to correct drift; never touch targetX/Y
+        players[pid].x = serverP.x;
+        players[pid].y = serverP.y;
+      } else {
+        // Other players: update everything from server
+        Object.assign(players[pid], serverP);
+      }
     }
     renderPlayers();
     renderCoins();
@@ -80,7 +97,7 @@ game.addEventListener("click", (e) => {
   const targetX = e.clientX - rect.left - 10;
   const targetY = e.clientY - rect.top - 10;
 
-  // Set local target
+  // Always set local target for this tab
   if (players[myId]) {
     players[myId].targetX = targetX;
     players[myId].targetY = targetY;
@@ -105,7 +122,24 @@ game.addEventListener("click", (e) => {
   }
 });
 
-function moveLoop() {
+let lastFrameTime = performance.now();
+let isTabActive = true;
+
+// Detect tab visibility changes
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    isTabActive = false;
+  } else {
+    isTabActive = true;
+    lastFrameTime = performance.now(); // Reset time to avoid huge delta
+  }
+});
+
+function moveLoop(currentTime) {
+  // Calculate delta time (cap at 100ms to avoid huge jumps after tab switch)
+  const deltaTime = Math.min((currentTime - lastFrameTime) / 16.67, 6); // 16.67ms = 60fps
+  lastFrameTime = currentTime;
+
   // Move all players locally based on their targets
   for (let id in players) {
     const p = players[id];
@@ -117,7 +151,10 @@ function moveLoop() {
     let dy = p.targetY - p.y;
     let dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < speed) {
+    // Use deltaTime to ensure consistent speed regardless of frame rate
+    const moveAmount = speed * deltaTime;
+
+    if (dist < moveAmount) {
       // Reached target
       p.x = p.targetX;
       p.y = p.targetY;
@@ -125,8 +162,8 @@ function moveLoop() {
       p.targetY = undefined;
     } else {
       // Move towards target
-      p.x += (dx / dist) * speed;
-      p.y += (dy / dist) * speed;
+      p.x += (dx / dist) * moveAmount;
+      p.y += (dy / dist) * moveAmount;
     }
   }
 
@@ -134,7 +171,7 @@ function moveLoop() {
   requestAnimationFrame(moveLoop);
 }
 
-moveLoop();
+requestAnimationFrame(moveLoop);
 
 function renderPlayers() {
   const dt = 0.2;
