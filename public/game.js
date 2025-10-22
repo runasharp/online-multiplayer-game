@@ -55,13 +55,21 @@ ws.onmessage = (msg) => {
   if (data.type === "init") {
     myId = data.id;
     players = data.players;
-    console.log("Init received:", data);
     renderPlayers();
     renderCoins();
   }
+
   if (data.type === "update") {
-    players = data.players;
-    console.log("Update received:", players);
+    for (let pid in data.players) {
+      if (!players[pid]) players[pid] = {};
+      Object.assign(players[pid], data.players[pid]); // merge delta
+    }
+    renderPlayers();
+    renderCoins();
+  }
+
+  if (data.type === "remove") {
+    delete players[data.playerId];
     renderPlayers();
     renderCoins();
   }

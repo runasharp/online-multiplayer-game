@@ -27,6 +27,9 @@ const mongoose = require("mongoose");
 const mongoURI = `mongodb+srv://${dbUser}:${dbPass}@${dbHost}/`;
 // console.log("MongoDB URI:", mongoURI);
 
+// Listen for client messages
+let changedPlayers = new Set();
+
 mongoose
   .connect(mongoURI + "user_data?retryWrites=true&w=majority", {
     useNewUrlParser: true,
@@ -166,27 +169,25 @@ wss.on("connection", async (ws, req) => {
     // send initial state
     ws.send(JSON.stringify({ type: "init", players, id }));
 
-    // Listen for client messages
     ws.on("message", (message) => {
       const data = JSON.parse(message);
 
-      // movement
       if (data.type === "move" && players[id]) {
         players[id].x = data.x;
         players[id].y = data.y;
-        broadcast(JSON.stringify({ type: "update", players }));
+
+        // Mark this player as changed
+        changedPlayers.add(id);
       }
 
-      // chat
       if (data.type === "chat") {
         const chatMsg = { type: "chat", username, text: data.text };
         broadcast(JSON.stringify(chatMsg));
       }
 
-      // optional client-initiated disconnect
       if (data.type === "disconnect" && players[id]) {
         delete players[id];
-        broadcast(JSON.stringify({ type: "update", players }));
+        broadcast(JSON.stringify({ type: "remove", playerId: id }));
         ws.close();
       }
     });
@@ -219,6 +220,28 @@ wss.on("connection", async (ws, req) => {
   }
 });
 
+// Broadcast only changed players every 50ms
+setInterval(() => {
+  if (changedPlayers.size > 0) {
+    const updatePayload = { type: "update", players: {} };
+
+    changedPlayers.forEach((pid) => {
+      const p = players[pid];
+      if (p) {
+        updatePayload.players[pid] = {
+          x: p.x,
+          y: p.y,
+          coins: p.coins,
+          username: p.username,
+        };
+      }
+    });
+
+    broadcast(JSON.stringify(updatePayload));
+    changedPlayers.clear();
+  }
+}, 50); // 20 times/sec
+
 // Heartbeat interval to detect dead sockets
 setInterval(() => {
   wss.clients.forEach((ws) => {
@@ -242,12 +265,9 @@ userChangeStream.on("change", (change) => {
     const updatedUserId = change.documentKey._id.toString();
     const newCoins = change.updateDescription.updatedFields.coins;
 
-    // Update all connected players with this user ID
-    for (let pid in players) {
-      if (players[pid]._id.toString() === updatedUserId) {
-        players[pid].coins = newCoins;
-        broadcast(JSON.stringify({ type: "update", players }));
-      }
+    if (players[updatedUserId]) {
+      players[updatedUserId].coins = newCoins;
+      changedPlayers.add(updatedUserId); // mark for delta update
     }
   }
 });
