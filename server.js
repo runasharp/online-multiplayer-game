@@ -1,6 +1,6 @@
 require("dotenv").config();
 const { dbUser, dbPass, dbHost, PORT, JWT_SECRET } = require("./server/config");
-console.log(dbUser, dbHost, PORT);
+const { setupWebSocket } = require("./server/wsHandler");
 
 const express = require("express");
 const http = require("http");
@@ -104,7 +104,6 @@ app.post("/login", async (req, res) => {
 app.use(express.static("public"));
 
 // Player storage
-let players = {};
 
 // Serve login page by default
 app.get("/", (req, res) => {
@@ -115,173 +114,17 @@ app.get("/", (req, res) => {
 // WebSocket multiplayer with target-based movement
 // --------------------
 
-const userConnections = {};
-const speed = 5; // Must match client speed exactly
-
-// Server-side movement simulation runs independently
-function serverMoveLoop() {
-  for (let id in players) {
-    const p = players[id];
-
-    // Skip if no target set
-    if (p.targetX === undefined || p.targetY === undefined) continue;
-
-    let dx = p.targetX - p.x;
-    let dy = p.targetY - p.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < speed) {
-      // Reached target
-      p.x = p.targetX;
-      p.y = p.targetY;
-      p.targetX = undefined;
-      p.targetY = undefined;
-    } else {
-      // Move towards target
-      p.x += (dx / dist) * speed;
-      p.y += (dy / dist) * speed;
-    }
-  }
-}
-
-// Run server movement at ~60fps to match client
-setInterval(serverMoveLoop, 16); // approximately 60 times per second
-
-wss.on("connection", async (ws, req) => {
-  try {
-    const urlParams = new URLSearchParams(req.url.split("?")[1]);
-    const token = urlParams.get("token");
-    if (!token) return ws.close();
-
-    const payload = jwt.verify(token, JWT_SECRET);
-    const username = payload.username;
-
-    // Fetch user document from MongoDB to get coins
-    const user = await User.findOne({ username });
-    if (!user) return ws.close(); // safety check
-
-    const id = user._id.toString(); // MongoDB _id as string
-    ws.userId = id; // attach _id to ws for later reference
-
-    userConnections[id] = userConnections[id] || [];
-    userConnections[id].push(ws);
-    console.log(
-      `User ${id} connected. Active tabs: ${userConnections[id].length}`
-    );
-
-    ws.isAlive = true; // mark alive for heartbeat
-
-    if (players[id]) {
-      // restore existing player, keep previous x/y
-      players[id].disconnected = false;
-      players[id].username = user.username;
-      players[id].coins = user.coins;
-    } else {
-      // new player
-      players[id] = {
-        _id: user._id,
-        x: 665.3,
-        y: 322.4,
-        username: user.username,
-        coins: user.coins,
-      };
-    }
-
-    // send initial state with ALL players
-    ws.send(JSON.stringify({ type: "init", players, id }));
-
-    // Also broadcast to others that this player joined/reconnected
-    const joinMsg = {
-      type: "update",
-      players: {
-        [id]: {
-          x: players[id].x,
-          y: players[id].y,
-          targetX: players[id].targetX,
-          targetY: players[id].targetY,
-          coins: players[id].coins,
-          username: players[id].username,
-        },
-      },
-    };
-    broadcast(JSON.stringify(joinMsg), ws); // exclude sender
-
-    ws.on("message", (message) => {
-      const data = JSON.parse(message);
-
-      // Handle target setting instead of continuous move updates
-      if (data.type === "setTarget" && players[id]) {
-        players[id].targetX = data.targetX;
-        players[id].targetY = data.targetY;
-
-        // Broadcast the new target to all OTHER clients
-        const targetMsg = {
-          type: "update",
-          players: {
-            [id]: {
-              targetX: data.targetX,
-              targetY: data.targetY,
-              x: players[id].x,
-              y: players[id].y,
-              coins: players[id].coins,
-              username: players[id].username,
-            },
-          },
-        };
-        broadcast(JSON.stringify(targetMsg), ws); // exclude sender
-
-        console.log(
-          `Player ${username} new target: x=${data.targetX.toFixed(
-            1
-          )}, y=${data.targetY.toFixed(1)}`
-        );
-      }
-
-      if (data.type === "chat") {
-        const chatMsg = { type: "chat", username, text: data.text };
-        broadcast(JSON.stringify(chatMsg));
-      }
-
-      if (data.type === "disconnect" && players[id]) {
-        delete players[id];
-        broadcast(JSON.stringify({ type: "remove", playerId: id }));
-        ws.close();
+const { players, userConnections } = setupWebSocket({
+  wss,
+  User,
+  JWT_SECRET,
+  broadcast: (msg, excludeWs = null) => {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN && client !== excludeWs) {
+        client.send(msg);
       }
     });
-
-    // Mark socket alive on pong
-    ws.on("pong", () => {
-      ws.isAlive = true;
-    });
-
-    // Remove player when socket closes
-    ws.on("close", () => {
-      if (!ws.userId) return;
-
-      const id = ws.userId;
-      const connections = userConnections[id];
-      if (connections) {
-        const index = connections.indexOf(ws);
-        if (index > -1) connections.splice(index, 1);
-
-        console.log(
-          `User ${id} closed a tab. Remaining: ${connections.length}`
-        );
-
-        if (connections.length === 0) {
-          delete userConnections[id];
-          if (players[id]) {
-            delete players[id];
-            broadcast(JSON.stringify({ type: "remove", playerId: id }));
-            console.log(`Player ${id} removed (last tab closed)`);
-          }
-        }
-      }
-    });
-  } catch (err) {
-    console.error("WebSocket connection error:", err);
-    ws.close();
-  }
+  },
 });
 
 // Periodic position sync to correct any client drift (less frequent now)
