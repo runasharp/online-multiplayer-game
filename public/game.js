@@ -78,12 +78,23 @@ ws.onmessage = (msg) => {
 
   if (data.type === "update") {
     for (let pid in data.players) {
-      if (!players[pid]) players[pid] = {};
       const serverP = data.players[pid];
 
-      // Always merge all server fields, including coins
-      Object.assign(players[pid], serverP);
+      if (!players[pid]) {
+        // first time seeing this player
+        players[pid] = {
+          displayX: serverP.x,
+          displayY: serverP.y,
+        };
+      }
+
+      // Update all server fields
+      players[pid].x = serverP.x;
+      players[pid].y = serverP.y;
+      players[pid].coins = serverP.coins;
+      players[pid].username = serverP.username || players[pid].username;
     }
+
     renderPlayers();
     renderCoins();
   }
