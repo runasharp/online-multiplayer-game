@@ -33,6 +33,7 @@ function setupWS({ wss, players }) {
         targetY: p.targetY,
         coins: p.coins,
         username: p.username,
+        color: p.color || "green",
       };
     }
     broadcast(JSON.stringify(syncPayload));

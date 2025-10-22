@@ -100,6 +100,7 @@ function setupWebSocket({ wss, User, JWT_SECRET, broadcast }) {
                 y: players[id].y,
                 coins: players[id].coins,
                 username: players[id].username,
+                color: players[id].color || "green",
               },
             },
           };

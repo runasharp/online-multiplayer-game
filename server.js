@@ -6,7 +6,7 @@ const { authRoutes } = require("./server/routes/auth");
 const { connectDB } = require("./server/db");
 const { setupWS } = require("./server/wsManager");
 const User = require("./server/models/User");
-const { setupCoinUpdates } = require("./server/coinUpdater");
+const { setupPlayerUpdates } = require("./server/playerUpdater");
 
 const http = require("http");
 const WebSocket = require("ws");
@@ -57,7 +57,7 @@ const { players, userConnections } = setupWebSocket({
 
 const { broadcast } = setupWS({ wss, players, User }); // handles heartbeat, sync, and coin updates
 
-setupCoinUpdates(User, players, broadcast);
+setupPlayerUpdates(User, players, broadcast);
 
 // Start server
 server.listen(PORT, () => {
