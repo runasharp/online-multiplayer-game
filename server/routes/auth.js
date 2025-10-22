@@ -1,24 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
-function getRandomColor() {
-  const colors = [
-    "red",
-    "green",
-    "blue",
-    "orange",
-    "purple",
-    "yellow",
-    "cyan",
-    "magenta",
-    "lime",
-    "pink",
-    "teal",
-    "brown",
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
+const { getRandomColor } = require("./utils/colorUtils");
 
 function authRoutes({ User, JWT_SECRET }) {
   const router = express.Router();
