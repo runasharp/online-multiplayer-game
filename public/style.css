@@ -40,7 +40,6 @@
 .player {
   width: 20px;
   height: 20px;
-  background: green;
   position: absolute;
   border-radius: 50%;
   transition: left 0.05s linear, top 0.05s linear;

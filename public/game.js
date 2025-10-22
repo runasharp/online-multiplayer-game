@@ -229,6 +229,8 @@ function renderPlayers() {
       wrapper.appendChild(dot);
     }
 
+    dot.style.background = p.color || "green";
+
     // LABEL inside wrapper
     let label = wrapper.querySelector(".player-label");
     if (!label) {

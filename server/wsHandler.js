@@ -53,6 +53,7 @@ function setupWebSocket({ wss, User, JWT_SECRET, broadcast }) {
         players[id].disconnected = false;
         players[id].username = user.username;
         players[id].coins = user.coins;
+        players[id].color = user.color;
       } else {
         players[id] = {
           _id: user._id,
@@ -60,6 +61,7 @@ function setupWebSocket({ wss, User, JWT_SECRET, broadcast }) {
           y: 322.4,
           username: user.username,
           coins: user.coins,
+          color: user.color,
         };
       }
 
@@ -75,6 +77,7 @@ function setupWebSocket({ wss, User, JWT_SECRET, broadcast }) {
             targetY: players[id].targetY,
             coins: players[id].coins,
             username: players[id].username,
+            color: players[id].color || "green",
           },
         },
       };

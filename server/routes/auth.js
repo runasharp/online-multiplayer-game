@@ -2,6 +2,24 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+function getRandomColor() {
+  const colors = [
+    "red",
+    "green",
+    "blue",
+    "orange",
+    "purple",
+    "yellow",
+    "cyan",
+    "magenta",
+    "lime",
+    "pink",
+    "teal",
+    "brown",
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
 function authRoutes({ User, JWT_SECRET }) {
   const router = express.Router();
 
@@ -15,7 +33,13 @@ function authRoutes({ User, JWT_SECRET }) {
       if (existing) return res.status(400).send({ error: "Username exists" });
 
       const hash = await bcrypt.hash(password, 10);
-      const user = new User({ username, password: hash });
+
+      const user = new User({
+        username,
+        password: hash,
+        color: getRandomColor(), // <-- assign random color here
+      });
+
       await user.save();
 
       res.send({ success: true });
