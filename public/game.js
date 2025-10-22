@@ -93,6 +93,7 @@ ws.onmessage = (msg) => {
       players[pid].y = serverP.y;
       players[pid].coins = serverP.coins;
       players[pid].username = serverP.username || players[pid].username;
+      players[pid].color = serverP.color || players[pid].color;
     }
 
     renderPlayers();
