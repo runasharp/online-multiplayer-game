@@ -25,9 +25,7 @@ console.log("WebSocket attached to HTTP server");
 const mongoose = require("mongoose");
 
 const mongoURI = `mongodb+srv://${dbUser}:${dbPass}@${dbHost}/`;
-// console.log("MongoDB URI:", mongoURI);
 
-// Listen for client messages
 let changedPlayers = new Set();
 
 mongoose
@@ -41,10 +39,9 @@ mongoose
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // hashed
-  coins: { type: Number, default: 0 }, // new field
+  coins: { type: Number, default: 0 },
 });
 
-// Mongoose will store these in the 'users' collection inside 'user_data'
 const User = mongoose.model("User", userSchema, "users");
 app.use(bodyParser.json());
 
@@ -59,7 +56,6 @@ app.get("/index.html", (req, res) => {
 // --------------------
 // Registration endpoint
 // --------------------
-
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -95,7 +91,6 @@ app.post("/login", async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).send({ error: "Wrong password" });
 
-    // ✅ create a JWT token
     const token = jwt.sign(
       { id: user._id, username: user.username },
       JWT_SECRET,
@@ -112,7 +107,7 @@ app.post("/login", async (req, res) => {
 });
 
 // Middlewares
-app.use(express.static("public")); // serve client files
+app.use(express.static("public"));
 
 // Player storage
 let players = {};
@@ -123,10 +118,40 @@ app.get("/", (req, res) => {
 });
 
 // --------------------
-// WebSocket multiplayer with heartbeat
+// WebSocket multiplayer with target-based movement
 // --------------------
 
 const userConnections = {};
+const speed = 5; // Must match client speed exactly
+
+// Server-side movement simulation runs independently
+function serverMoveLoop() {
+  for (let id in players) {
+    const p = players[id];
+
+    // Skip if no target set
+    if (p.targetX === undefined || p.targetY === undefined) continue;
+
+    let dx = p.targetX - p.x;
+    let dy = p.targetY - p.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < speed) {
+      // Reached target
+      p.x = p.targetX;
+      p.y = p.targetY;
+      p.targetX = undefined;
+      p.targetY = undefined;
+    } else {
+      // Move towards target
+      p.x += (dx / dist) * speed;
+      p.y += (dy / dist) * speed;
+    }
+  }
+}
+
+// Run server movement at ~60fps to match client
+setInterval(serverMoveLoop, 16); // approximately 60 times per second
 
 wss.on("connection", async (ws, req) => {
   try {
@@ -152,7 +177,6 @@ wss.on("connection", async (ws, req) => {
     if (players[id]) {
       // restore existing player, keep previous x/y
       players[id].disconnected = false;
-      // only update other info if needed
       players[id].username = user.username;
       players[id].coins = user.coins;
     } else {
@@ -172,12 +196,32 @@ wss.on("connection", async (ws, req) => {
     ws.on("message", (message) => {
       const data = JSON.parse(message);
 
-      if (data.type === "move" && players[id]) {
-        players[id].x = data.x;
-        players[id].y = data.y;
+      // handle target setting instead of continuous move updates
+      if (data.type === "setTarget" && players[id]) {
+        players[id].targetX = data.targetX;
+        players[id].targetY = data.targetY;
 
-        // Mark this player as changed
-        changedPlayers.add(id);
+        // Broadcast the new target to all clients
+        const targetMsg = {
+          type: "update",
+          players: {
+            [id]: {
+              targetX: data.targetX,
+              targetY: data.targetY,
+              x: players[id].x,
+              y: players[id].y,
+              coins: players[id].coins,
+              username: players[id].username,
+            },
+          },
+        };
+        broadcast(JSON.stringify(targetMsg));
+
+        console.log(
+          `Player ${username} new target: x=${data.targetX.toFixed(
+            1
+          )}, y=${data.targetY.toFixed(1)}`
+        );
       }
 
       if (data.type === "chat") {
@@ -220,27 +264,27 @@ wss.on("connection", async (ws, req) => {
   }
 });
 
-// Broadcast only changed players every 50ms
+// Periodic position sync to correct any client drift
+// This sends the authoritative server positions every second
 setInterval(() => {
-  if (changedPlayers.size > 0) {
-    const updatePayload = { type: "update", players: {} };
+  if (Object.keys(players).length > 0) {
+    const syncPayload = { type: "update", players: {} };
 
-    changedPlayers.forEach((pid) => {
+    for (let pid in players) {
       const p = players[pid];
-      if (p) {
-        updatePayload.players[pid] = {
-          x: p.x,
-          y: p.y,
-          coins: p.coins,
-          username: p.username,
-        };
-      }
-    });
+      syncPayload.players[pid] = {
+        x: p.x,
+        y: p.y,
+        targetX: p.targetX,
+        targetY: p.targetY,
+        coins: p.coins,
+        username: p.username,
+      };
+    }
 
-    broadcast(JSON.stringify(updatePayload));
-    changedPlayers.clear();
+    broadcast(JSON.stringify(syncPayload));
   }
-}, 50); // 20 times/sec
+}, 1000); // Sync every 1 second
 
 // Heartbeat interval to detect dead sockets
 setInterval(() => {

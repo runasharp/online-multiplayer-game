@@ -1,7 +1,6 @@
 const game = document.getElementById("game");
 let myId;
 let players = {};
-let target = null;
 const speed = 5; // pixels per frame
 
 // Get username from URL query string
@@ -75,45 +74,60 @@ ws.onmessage = (msg) => {
   }
 };
 
-// Click to move
+// Click to move - now just sends target once
 game.addEventListener("click", (e) => {
   const rect = game.getBoundingClientRect();
-  target = {
-    x: e.clientX - rect.left - 10,
-    y: e.clientY - rect.top - 10,
-  };
+  const targetX = e.clientX - rect.left - 10;
+  const targetY = e.clientY - rect.top - 10;
 
-  // теперь сработает корректно после первого сообщения
+  // Set local target
+  if (players[myId]) {
+    players[myId].targetX = targetX;
+    players[myId].targetY = targetY;
+  }
+
+  // Send target to server ONCE
+  ws.send(
+    JSON.stringify({
+      type: "setTarget",
+      targetX: targetX,
+      targetY: targetY,
+    })
+  );
+
+  console.log(
+    `New target set: x=${targetX.toFixed(1)}, y=${targetY.toFixed(1)}`
+  );
+
+  // Refocus chat if active
   if (window.chatActive) {
     setTimeout(() => chatInput.focus(), 0);
   }
 });
 
-let lastSent = 0;
-
 function moveLoop() {
-  if (players[myId] && target) {
-    let p = players[myId];
-    let dx = target.x - p.x;
-    let dy = target.y - p.y;
+  // Move all players locally based on their targets
+  for (let id in players) {
+    const p = players[id];
+
+    // Skip if no target set
+    if (p.targetX === undefined || p.targetY === undefined) continue;
+
+    let dx = p.targetX - p.x;
+    let dy = p.targetY - p.y;
     let dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist < speed) {
-      p.x = target.x;
-      p.y = target.y;
-      target = null;
+      // Reached target
+      p.x = p.targetX;
+      p.y = p.targetY;
+      p.targetX = undefined;
+      p.targetY = undefined;
     } else {
+      // Move towards target
       p.x += (dx / dist) * speed;
       p.y += (dy / dist) * speed;
     }
-
-    const sendInterval = 50; // ms, 20 updates/sec
-
-    if (Date.now() - lastSent > sendInterval) {
-      ws.send(JSON.stringify({ type: "move", x: p.x, y: p.y }));
-      lastSent = Date.now();
-    }
-    console.log(`Player position: x=${p.x.toFixed(1)}, y=${p.y.toFixed(1)}`);
   }
 
   renderPlayers();
@@ -174,7 +188,7 @@ function renderPlayers() {
     if (p.displayX === undefined) p.displayX = p.x;
     if (p.displayY === undefined) p.displayY = p.y;
 
-    // Interpolate toward server position
+    // Interpolate toward current position (for smooth rendering)
     p.displayX += (p.x - p.displayX) * dt;
     p.displayY += (p.y - p.displayY) * dt;
 
