@@ -13,18 +13,13 @@ function getScaleFactor() {
   };
 }
 
-// Get username from URL query string
+// Get username from URL query string∏
 const urlParams = new URLSearchParams(window.location.search);
 const myUsername = urlParams.get("username") || "Guest";
 
 // get JWT token from query string
 const token = urlParams.get("token");
 console.log("Token from URL:", token);
-if (!token) {
-  window.location.href = "/login";
-}
-
-// Redirect to login if no token
 if (!token) {
   window.location.href = "/login";
 }
