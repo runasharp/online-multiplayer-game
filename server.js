@@ -5,8 +5,8 @@ const express = require("express");
 const { authRoutes } = require("./server/routes/auth");
 const { connectDB } = require("./server/db");
 const { setupWS } = require("./server/wsManager");
-// import User model (already uses mongoose instance from db.js)
 const User = require("./server/models/User");
+const { setupCoinUpdates } = require("./server/coinUpdater");
 
 const http = require("http");
 const WebSocket = require("ws");
@@ -57,37 +57,7 @@ const { players, userConnections } = setupWebSocket({
 
 const { broadcast } = setupWS({ wss, players, User }); // handles heartbeat, sync, and coin updates
 
-// Coin update via MongoDB change stream
-const userChangeStream = User.watch();
-
-userChangeStream.on("change", (change) => {
-  if (
-    change.operationType === "update" &&
-    change.updateDescription.updatedFields.coins !== undefined
-  ) {
-    const updatedUserId = change.documentKey._id.toString();
-    const newCoins = change.updateDescription.updatedFields.coins;
-
-    // Always broadcast coin update, include x/y/username if available
-    const coinUpdate = {
-      type: "update",
-      players: {
-        [updatedUserId]: {
-          coins: newCoins,
-          username: players[updatedUserId]?.username || "Unknown",
-          x: players[updatedUserId]?.x || 0,
-          y: players[updatedUserId]?.y || 0,
-        },
-      },
-    };
-    broadcast(JSON.stringify(coinUpdate));
-
-    // Update local players object if the player exists
-    if (players[updatedUserId]) {
-      players[updatedUserId].coins = newCoins;
-    }
-  }
-});
+setupCoinUpdates(User, players, broadcast);
 
 // Start server
 server.listen(PORT, () => {
