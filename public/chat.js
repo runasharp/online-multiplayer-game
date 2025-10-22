@@ -56,7 +56,7 @@ function addMessage(username, text) {
     bubble.style.zIndex = 1000;
     bubble.style.pointerEvents = "none"; // clicks pass through
     bubble.style.whiteSpace = "nowrap";
-    bubble.style.fontSize = "14px";
+    bubble.style.fontSize = "16px";
     bubble.style.transform = "translateX(-50%)"; // center horizontally
     game.appendChild(bubble);
     window.bubbles[username] = bubble;
