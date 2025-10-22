@@ -1,11 +1,6 @@
 require("dotenv").config();
-
-const wsUrlProduction = process.env.WS_URL_PRODUCTION;
-const dbUser = process.env.DB_USER;
-const dbPass = process.env.DB_PASSWORD;
-const dbHost = process.env.DB_HOST;
-
-const PORT = process.env.PORT || 3000;
+const { dbUser, dbPass, dbHost, PORT, JWT_SECRET } = require("./server/config");
+console.log(dbUser, dbHost, PORT);
 
 const express = require("express");
 const http = require("http");
@@ -15,7 +10,6 @@ const bodyParser = require("body-parser");
 const path = require("path");
 
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET;
 
 const app = express();
 const server = http.createServer(app);
