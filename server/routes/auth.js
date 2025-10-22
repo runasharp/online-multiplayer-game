@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { getRandomColor } = require("./utils/colorUtils");
+const { getRandomColor } = require("../utils/colorUtils");
 
 function authRoutes({ User, JWT_SECRET }) {
   const router = express.Router();
