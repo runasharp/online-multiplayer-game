@@ -122,6 +122,9 @@ app.get("/", (req, res) => {
 // --------------------
 // WebSocket multiplayer with heartbeat
 // --------------------
+
+const userConnections = {};
+
 wss.on("connection", async (ws, req) => {
   try {
     const urlParams = new URLSearchParams(req.url.split("?")[1]);
@@ -137,6 +140,10 @@ wss.on("connection", async (ws, req) => {
 
     const id = user._id.toString(); // MongoDB _id as string
     ws.userId = id; // attach _id to ws for later reference
+
+    userConnections[id] = (userConnections[id] || 0) + 1;
+    console.log(`User ${id} connected. Active tabs: ${userConnections[id]}`);
+
     ws.isAlive = true; // mark alive for heartbeat
 
     if (players[id]) {
@@ -191,18 +198,19 @@ wss.on("connection", async (ws, req) => {
 
     // Remove player when socket closes
     ws.on("close", () => {
-      if (ws.userId && players[ws.userId]) {
-        // mark as disconnected but keep data
-        players[ws.userId].disconnected = true;
+      if (!ws.userId) return;
 
-        // remove after 1 second if they don't reconnect
-        setTimeout(() => {
-          if (players[ws.userId]?.disconnected) {
-            delete players[ws.userId];
-            broadcast(JSON.stringify({ type: "update", players }));
-            console.log(`Player ${ws.userId} removed after timeout`);
-          }
-        }, 1000);
+      const id = ws.userId;
+      userConnections[id] = (userConnections[id] || 1) - 1;
+      console.log(`User ${id} closed a tab. Remaining: ${userConnections[id]}`);
+
+      if (userConnections[id] <= 0) {
+        delete userConnections[id];
+        if (players[id]) {
+          delete players[id];
+          broadcast(JSON.stringify({ type: "update", players }));
+          console.log(`Player ${id} removed (last tab closed)`);
+        }
       }
     });
   } catch (err) {
