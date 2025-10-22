@@ -99,8 +99,21 @@ class Player {
     }
 
     // Update visual properties
-    this.dot.style.background = this.color;
     this.label.textContent = this.username;
+
+    if (this.color === "camo") {
+      this.dot.style.background = `url('assets/camo.png')`;
+      this.dot.style.backgroundRepeat = "no-repeat";
+      this.dot.style.backgroundPosition = "center";
+      this.dot.style.backgroundSize = "200%";
+    } else if (this.color === "sparkle") {
+      this.dot.style.background = `url('assets/sparkle.gif')`;
+      this.dot.style.backgroundRepeat = "no-repeat";
+      this.dot.style.backgroundPosition = "center";
+      this.dot.style.backgroundSize = "350%";
+    } else {
+      this.dot.style.background = this.color;
+    }
 
     // Interpolate display position
     this.interpolateDisplay();
