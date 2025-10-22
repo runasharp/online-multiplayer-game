@@ -81,14 +81,8 @@ ws.onmessage = (msg) => {
       if (!players[pid]) players[pid] = {};
       const serverP = data.players[pid];
 
-      if (pid === myId) {
-        // Only update position to correct drift; never touch targetX/Y
-        players[pid].x = serverP.x;
-        players[pid].y = serverP.y;
-      } else {
-        // Other players: update everything from server
-        Object.assign(players[pid], serverP);
-      }
+      // Always merge all server fields, including coins
+      Object.assign(players[pid], serverP);
     }
     renderPlayers();
     renderCoins();
