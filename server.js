@@ -7,7 +7,6 @@ const { connectDB } = require("./server/db");
 const { setupWS } = require("./server/wsManager");
 const User = require("./server/models/User");
 const { setupPlayerUpdates } = require("./server/playerUpdater");
-
 const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
@@ -20,7 +19,17 @@ connectDB();
 // Middlewares
 app.use(express.json());
 app.use(authRoutes({ User, JWT_SECRET }));
-app.use(express.static("public"));
+
+// Serve static files with correct MIME types
+app.use(
+  express.static("public", {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
+    },
+  })
+);
 
 // HTTP routes
 app.get("/login", (req, res) => {
@@ -56,7 +65,6 @@ const { players, userConnections } = setupWebSocket({
 });
 
 const { broadcast } = setupWS({ wss, players, User }); // handles heartbeat, sync, and coin updates
-
 setupPlayerUpdates(User, players, broadcast);
 
 // Start server

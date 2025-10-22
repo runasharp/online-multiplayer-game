@@ -1,6 +1,6 @@
 const game = document.getElementById("game");
 let myId;
-let players = {};
+let players = {}; // Now stores Player instances
 const speed = 5; // pixels per frame
 const GAME_WIDTH = 1100;
 const GAME_HEIGHT = 700;
@@ -13,11 +13,11 @@ function getScaleFactor() {
   };
 }
 
-// Get username from URL query string∏
+// Get username from URL query string
 const urlParams = new URLSearchParams(window.location.search);
 const myUsername = urlParams.get("username") || "Guest";
 
-// get JWT token from query string
+// Get JWT token from query string
 const token = urlParams.get("token");
 console.log("Token from URL:", token);
 if (!token) {
@@ -58,13 +58,10 @@ ws.onmessage = (msg) => {
 
   if (data.type === "init") {
     myId = data.id;
-    players = data.players;
 
-    // Initialize all players with their current positions
-    for (let pid in players) {
-      const p = players[pid];
-      if (p.displayX === undefined) p.displayX = p.x;
-      if (p.displayY === undefined) p.displayY = p.y;
+    // Initialize all players with Player class instances
+    for (let pid in data.players) {
+      players[pid] = new Player(pid, data.players[pid]);
     }
 
     renderPlayers();
@@ -76,19 +73,12 @@ ws.onmessage = (msg) => {
       const serverP = data.players[pid];
 
       if (!players[pid]) {
-        // first time seeing this player
-        players[pid] = {
-          displayX: serverP.x,
-          displayY: serverP.y,
-        };
+        // First time seeing this player
+        players[pid] = new Player(pid, serverP);
+      } else {
+        // Update existing player
+        players[pid].update(serverP);
       }
-
-      // Update all server fields
-      players[pid].x = serverP.x;
-      players[pid].y = serverP.y;
-      players[pid].coins = serverP.coins;
-      players[pid].username = serverP.username || players[pid].username;
-      players[pid].color = serverP.color || players[pid].color;
     }
 
     renderPlayers();
@@ -96,7 +86,10 @@ ws.onmessage = (msg) => {
   }
 
   if (data.type === "remove") {
-    delete players[data.playerId];
+    if (players[data.playerId]) {
+      players[data.playerId].removeDOM();
+      delete players[data.playerId];
+    }
     renderPlayers();
     renderCoins();
   }
@@ -112,8 +105,7 @@ game.addEventListener("click", (e) => {
   const targetY = (e.clientY - rect.top) / scale.y - 10;
 
   if (players[myId]) {
-    players[myId].targetX = targetX;
-    players[myId].targetY = targetY;
+    players[myId].setTarget(targetX, targetY);
   }
 
   ws.send(
@@ -155,29 +147,7 @@ function moveLoop(currentTime) {
 
   // Move all players locally based on their targets
   for (let id in players) {
-    const p = players[id];
-
-    // Skip if no target set
-    if (p.targetX === undefined || p.targetY === undefined) continue;
-
-    let dx = p.targetX - p.x;
-    let dy = p.targetY - p.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
-
-    // Use deltaTime to ensure consistent speed regardless of frame rate
-    const moveAmount = speed * deltaTime;
-
-    if (dist < moveAmount) {
-      // Reached target
-      p.x = p.targetX;
-      p.y = p.targetY;
-      p.targetX = undefined;
-      p.targetY = undefined;
-    } else {
-      // Move towards target
-      p.x += (dx / dist) * moveAmount;
-      p.y += (dy / dist) * moveAmount;
-    }
+    players[id].move(speed, deltaTime);
   }
 
   renderPlayers();
@@ -187,7 +157,7 @@ function moveLoop(currentTime) {
 requestAnimationFrame(moveLoop);
 
 function renderPlayers() {
-  const dt = 0.2;
+  const scale = getScaleFactor();
 
   // Remove DOM elements for players that no longer exist
   const currentWrappers = Array.from(
@@ -200,70 +170,9 @@ function renderPlayers() {
     }
   });
 
+  // Render each player
   for (let id in players) {
-    const p = players[id];
-
-    // PLAYER WRAPPER
-    let wrapper = document.getElementById(`player-wrapper-${id}`);
-    if (!wrapper) {
-      wrapper = document.createElement("div");
-      wrapper.id = `player-wrapper-${id}`;
-      wrapper.style.position = "absolute";
-      wrapper.style.width = "20px"; // match dot size
-      wrapper.style.height = "20px"; // match dot size
-      game.appendChild(wrapper);
-    }
-
-    // DOT inside wrapper
-    let dot = wrapper.querySelector(".player");
-    if (!dot) {
-      dot = document.createElement("div");
-      dot.className = "player";
-      dot.style.width = "20px";
-      dot.style.height = "20px";
-      dot.style.borderRadius = "50%";
-      wrapper.appendChild(dot);
-    }
-
-    dot.style.background = p.color || "green";
-
-    // LABEL inside wrapper
-    let label = wrapper.querySelector(".player-label");
-    if (!label) {
-      label = document.createElement("div");
-      label.className = "player-label";
-      wrapper.appendChild(label);
-    }
-
-    label.textContent = p.username;
-
-    // Center label horizontally under dot
-    label.style.position = "absolute";
-    label.style.left = "50%"; // start at horizontal center of wrapper
-    label.style.top = "22px"; // just below the dot (20px dot + 2px spacing)
-    label.style.transform = "translateX(-50%)"; // truly center under dot
-    label.style.whiteSpace = "nowrap"; // prevent line wrap
-    label.style.pointerEvents = "none"; // clicks pass through
-
-    // Initialize display positions if not exist
-    if (p.displayX === undefined) p.displayX = p.x;
-    if (p.displayY === undefined) p.displayY = p.y;
-
-    // Interpolate toward current position (for smooth rendering)
-    p.displayX += (p.x - p.displayX) * dt;
-    p.displayY += (p.y - p.displayY) * dt;
-
-    // Move wrapper smoothly
-    const scale = getScaleFactor();
-    wrapper.style.transform = `translate3d(${p.displayX * scale.x}px, ${
-      p.displayY * scale.y
-    }px, 0)`;
-    // Optional bubble
-    const bubble = bubbles?.[p.username];
-    if (bubble) {
-      bubble.style.left = p.displayX + "px";
-      bubble.style.top = p.displayY - 30 + "px";
-    }
+    players[id].render(scale, window.bubbles);
   }
 }
 
