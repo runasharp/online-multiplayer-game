@@ -2,6 +2,16 @@ const game = document.getElementById("game");
 let myId;
 let players = {};
 const speed = 5; // pixels per frame
+const GAME_WIDTH = 1100;
+const GAME_HEIGHT = 700;
+
+function getScaleFactor() {
+  const gameEl = document.getElementById("game");
+  return {
+    x: gameEl.clientWidth / GAME_WIDTH,
+    y: gameEl.clientHeight / GAME_HEIGHT,
+  };
+}
 
 // Get username from URL query string
 const urlParams = new URLSearchParams(window.location.search);
@@ -230,8 +240,10 @@ function renderPlayers() {
     p.displayY += (p.y - p.displayY) * dt;
 
     // Move wrapper smoothly
-    wrapper.style.transform = `translate3d(${p.displayX}px, ${p.displayY}px, 0)`;
-
+    const scale = getScaleFactor();
+    wrapper.style.transform = `translate3d(${p.displayX * scale.x}px, ${
+      p.displayY * scale.y
+    }px, 0)`;
     // Optional bubble
     const bubble = bubbles?.[p.username];
     if (bubble) {
