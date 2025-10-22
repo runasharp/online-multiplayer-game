@@ -36,7 +36,7 @@ function setupWS({ wss, players }) {
       };
     }
     broadcast(JSON.stringify(syncPayload));
-  }, 2000);
+  }, 100);
 
   return { broadcast };
 }
