@@ -104,16 +104,17 @@ ws.onmessage = (msg) => {
 // Click to move - now just sends target once
 game.addEventListener("click", (e) => {
   const rect = game.getBoundingClientRect();
-  const targetX = e.clientX - rect.left - 10;
-  const targetY = e.clientY - rect.top - 10;
+  const scale = getScaleFactor();
 
-  // Always set local target for this tab
+  // Convert screen pixels to logical game coordinates
+  const targetX = (e.clientX - rect.left) / scale.x - 10;
+  const targetY = (e.clientY - rect.top) / scale.y - 10;
+
   if (players[myId]) {
     players[myId].targetX = targetX;
     players[myId].targetY = targetY;
   }
 
-  // Send target to server ONCE
   ws.send(
     JSON.stringify({
       type: "setTarget",
@@ -123,10 +124,11 @@ game.addEventListener("click", (e) => {
   );
 
   console.log(
-    `New target set: x=${targetX.toFixed(1)}, y=${targetY.toFixed(1)}`
+    `Player ${myUsername} new target: x=${targetX.toFixed(
+      1
+    )}, y=${targetY.toFixed(1)}`
   );
 
-  // Refocus chat if active
   if (window.chatActive) {
     setTimeout(() => chatInput.focus(), 0);
   }
